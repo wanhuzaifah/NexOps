@@ -51,10 +51,11 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
@@ -65,13 +66,14 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  background-color: hsl(var(--muted));
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-brand-gold/50 rounded-full;
+  background-color: rgba(245, 158, 11, 0.5);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-brand-gold;
+  background-color: #F59E0B;
 }
 
 /* Gold accent utilities */
