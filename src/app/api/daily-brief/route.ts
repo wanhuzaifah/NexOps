@@ -30,14 +30,14 @@ export async function POST(request: NextRequest) {
         .limit(1),
     ])
 
-    const allTenders = await supabase
+    const { count: allTendersCount } = await supabase
       .from('tender_cache')
-      .select('id', { count: 'exact' })
+      .select('id', { count: 'exact', head: true })
       .eq('company_id', company_id)
 
-    const savedTenders = await supabase
+    const { count: savedTendersCount } = await supabase
       .from('tender_cache')
-      .select('id', { count: 'exact' })
+      .select('id', { count: 'exact', head: true })
       .eq('company_id', company_id)
       .eq('status', 'saved')
 
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
       })),
       latestDigest: digests?.[0]?.content || 'No market digest available yet.',
       stats: {
-        total: allTenders.count || 0,
-        high: tenders?.length || 0,
-        saved: savedTenders.count || 0,
+        total: allTendersCount ?? 0,
+        high: tenders?.length ?? 0,
+        saved: savedTendersCount ?? 0,
       },
     })
 
