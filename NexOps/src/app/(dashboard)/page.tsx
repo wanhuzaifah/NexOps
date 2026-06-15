@@ -7,11 +7,12 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
-  RefreshCw,
   Bookmark,
   Send,
+  RefreshCw,
 } from 'lucide-react'
 import type { MarketDigest } from '@/types'
+import { TelegramBriefButton } from '@/components/TelegramBriefButton'
 
 function StatCard({
   title,
@@ -96,7 +97,7 @@ export default async function DashboardPage() {
             Paparan perisikan AI Fazmi Group — {new Date().toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link
             href="/tenders"
             className="flex items-center gap-2 px-4 py-2 gold-gradient text-brand-navy rounded-lg text-sm font-semibold hover:opacity-90 transition"
@@ -111,6 +112,7 @@ export default async function DashboardPage() {
             <BarChart2 size={15} />
             Market Intel
           </Link>
+          <TelegramBriefButton companyId={companyId || ''} />
         </div>
       </div>
 
