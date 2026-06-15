@@ -155,6 +155,7 @@ export default function MarketIntelPage() {
   // Digest state
   const [runningDigest, setRunningDigest] = useState(false)
   const [digestScope, setDigestScope] = useState<DigestScope>('malaysia')
+  const [digestLang, setDigestLang] = useState<'bilingual' | 'english' | 'malay'>('bilingual')
 
   // Research state
   const [topic, setTopic] = useState('')
@@ -190,28 +191,34 @@ export default function MarketIntelPage() {
   }, [loadData])
 
   async function runDigest() {
-    if (!companyId) return
+    if (!companyId) {
+      toast.error('Profile tidak dikonfigurasi — sila link company_id dalam Supabase dahulu')
+      return
+    }
     setRunningDigest(true)
-    toast.loading('Menjana digest pasaran...', { id: 'digest' })
+    toast.loading('Scraping berita & menjana digest AI...', { id: 'digest' })
     try {
       const res = await fetch('/api/market', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ company_id: companyId, scope: digestScope }),
+        body: JSON.stringify({ company_id: companyId, scope: digestScope, lang: digestLang }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal')
       toast.success('Digest berjaya dijana!', { id: 'digest' })
       await loadData(companyId)
     } catch (e) {
-      toast.error(String(e), { id: 'digest' })
+      toast.error(`Gagal: ${String(e)}`, { id: 'digest' })
     }
     setRunningDigest(false)
   }
 
   async function runResearch() {
     if (!topic.trim()) { toast.error('Masukkan topik penelitian'); return }
-    if (!companyId) return
+    if (!companyId) {
+      toast.error('Profile tidak dikonfigurasi — sila link company_id dalam Supabase dahulu')
+      return
+    }
     setResearching(true)
     setLiveResult('')
     toast.loading('AI sedang menyelidik...', { id: 'research' })
@@ -281,38 +288,69 @@ export default function MarketIntelPage() {
         <div className="space-y-4">
           {/* Controls */}
           <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Jana Digest Baru</h2>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex gap-2">
-                {([
-                  { value: 'malaysia' as DigestScope, label: '🇲🇾 Malaysia' },
-                  { value: 'global' as DigestScope, label: '🌐 Global' },
-                ]).map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setDigestScope(opt.value)}
-                    className={`px-3.5 py-2 rounded-lg text-sm font-medium border transition ${
-                      digestScope === opt.value
-                        ? 'border-brand-gold bg-brand-gold/10 text-brand-gold-dark dark:text-brand-gold'
-                        : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:border-slate-300'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Generate New Digest</h2>
+            <div className="space-y-3">
+              {/* Scope */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-400 w-16">Scope:</span>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'malaysia' as DigestScope, label: '🇲🇾 Malaysia' },
+                    { value: 'global' as DigestScope, label: '🌐 Global' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDigestScope(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition ${
+                        digestScope === opt.value
+                          ? 'border-brand-gold bg-brand-gold/10 text-brand-gold-dark dark:text-brand-gold'
+                          : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+              {/* Language */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-slate-400 w-16">News:</span>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'bilingual' as const, label: '🇲🇾+🇬🇧 Bilingual' },
+                    { value: 'english' as const, label: '🇬🇧 English' },
+                    { value: 'malay' as const, label: '🇲🇾 BM' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDigestLang(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
+                        digestLang === opt.value
+                          ? 'border-brand-gold bg-brand-gold/10 text-brand-gold-dark dark:text-brand-gold'
+                          : 'border-slate-200 dark:border-slate-600 text-slate-500 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-xs text-slate-400">
+                {digestLang === 'bilingual' && 'Scrape The Edge, Bernama + Berita Harian, Utusan'}
+                {digestLang === 'english' && 'Scrape The Edge, Bernama, The Star, FMT, OilPrice'}
+                {digestLang === 'malay' && 'Scrape Berita Harian, Utusan, Sinar, Malaysiakini'}
+              </p>
               <button
                 onClick={runDigest}
                 disabled={runningDigest}
                 className="flex items-center gap-2 gold-gradient text-brand-navy px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
               >
                 <RefreshCw size={14} className={runningDigest ? 'animate-spin' : ''} />
-                {runningDigest ? 'Menjana...' : 'Jana Digest'}
+                {runningDigest ? 'Generating...' : 'Generate Digest'}
               </button>
             </div>
-            <p className="text-xs text-slate-400 mt-2">
-              AI akan scrape berita terkini dan jana digest perisikan pasaran dalam Bahasa Malaysia.
-            </p>
           </div>
 
           {/* Digest list */}

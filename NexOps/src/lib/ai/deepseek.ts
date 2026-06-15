@@ -99,50 +99,101 @@ Return ONLY valid JSON array (no markdown):
 
 export async function marketIntelAgent(newsContent: string, scope: 'malaysia' | 'global' | 'custom' = 'malaysia'): Promise<string> {
   const scopeContext = {
-    malaysia: 'Focus on Malaysian construction, O&G, infrastructure, and NDT industry news.',
-    global: 'Focus on global O&G, Middle East projects, and international NDT/inspection opportunities.',
-    custom: 'Analyze the provided content thoroughly.',
+    malaysia: 'Focus on Malaysian market — construction, O&G, manufacturing, infrastructure. Sources include both English and Bahasa Malaysia news.',
+    global: 'Focus on global O&G, Middle East, and ASEAN industrial projects. Include international NDT/inspection opportunities.',
+    custom: 'Analyze all provided content thoroughly for business opportunities.',
   }
 
   return callDeepSeek(
     [
       {
         role: 'system',
-        content: `You are the Market Intelligence Agent for Fazmi Group Sdn Bhd / FG Inspection, a Malaysian NDT engineering company.
+        content: `You are the Market Intelligence Agent for Fazmi Group Sdn Bhd / FG Inspection — a Malaysian NDT, steel fabrication, and engineering inspection company.
+
+Services offered by Fazmi Group:
+- NDT (RT, UT, MPI, DPI, PAUT, TOFD, UTTG, PMI, HT, thickness survey)
+- Steel Fabrication (structural steel, vessels, skids)
+- Pipeline Installation & Inspection
+- Industrial Manpower Supply (NDT technicians, inspectors, welders)
+- G2 Construction (B04 civil, CE21 mechanical/electrical)
 
 ${scopeContext[scope]}
 
-Identify opportunities relevant to:
-- NDT & Inspection services (RT, UT, MPI, DPI, PAUT)
-- Oil & Gas (Malaysia + Middle East)
-- Construction & Infrastructure (Malaysia)
-- Steel Fabrication & Pipeline
-- Industrial Manpower Supply
+IMPORTANT: Read ALL sources regardless of language (English or Bahasa Malaysia). Extract concrete intelligence from each.
 
-Format your response in clean markdown with these sections:
-## Ringkasan Eksekutif
-(2-3 sentence summary in Bahasa Malaysia)
+Write a structured market intelligence report covering EXACTLY these 8 sections. Be specific — name actual companies, projects, locations, values where available:
 
-## Peluang Utama
-(bullet list of top 3-5 opportunities with brief explanation)
+---
 
-## Projek & Kontrak Baru
-(specific projects/contracts mentioned)
+## 📊 Executive Summary / Ringkasan Eksekutif
+2-3 sentences in English followed by 2-3 sentences in Bahasa Malaysia. Highlight the single biggest opportunity for Fazmi Group this week.
 
-## Risiko & Cabaran
-(market risks to watch)
+---
 
-## Cadangan Tindakan
-(what Fazmi Group should do based on this intel)
+## 🏭 New Factories & Industrial Facilities
+List any new factory openings, plant expansions, or new industrial facilities announced. For each:
+- Company name & location
+- Type of facility (refinery, petrochemical, manufacturing, etc.)
+- Estimated value if mentioned
+- **FG Inspection angle**: what NDT/inspection work this creates
 
-Keep it concise. Max 600 words total.`,
+---
+
+## 🚧 New Construction Projects
+New infrastructure, building, civil or industrial construction projects. For each:
+- Project name, owner/developer, location
+- Estimated value & timeline
+- **FG Inspection angle**: steel fab, structural inspection, or NDT needs
+
+---
+
+## 🔧 Upcoming NDT & Inspection Opportunities
+Direct NDT, inspection, or integrity management opportunities. Include:
+- Plant turnarounds, shutdowns, EPCC/EPCM inspection packages
+- Pipeline integrity surveys, storage tank inspections
+- Statutory inspection requirements, DOSH/JTK compliance jobs
+
+---
+
+## 🛢️ Pipeline & Oil & Gas Projects
+New or ongoing pipeline, upstream, midstream or downstream O&G projects:
+- Project name, operator, route/location
+- Scope (new build, rehab, integrity) and value
+- **FG Inspection angle**: pipeline inspection, NDT works
+
+---
+
+## 🔩 Steel Fabrication Opportunities
+Projects requiring steel fabrication work:
+- Structural steel, pressure vessels, process piping, skids, modules
+- Contractor/subcontractor opportunities
+
+---
+
+## ⚠️ Project Shutdowns & Slowdowns
+Any projects being delayed, cancelled, or winding down that may affect the industry:
+- Company or project name
+- Reason (if stated)
+- Impact on Fazmi Group's pipeline
+
+---
+
+## 💰 CAPEX / OPEX Intelligence
+Summarize any capital expenditure (CAPEX) or operational expenditure (OPEX) announcements:
+- Company, amount, purpose
+- Whether this creates direct opportunity for Fazmi Group (inspection, maintenance, construction)
+- Estimated addressable value for Fazmi Group services
+
+---
+
+Keep total length under 900 words. Use bullet points. Be direct and actionable.`,
       },
       {
         role: 'user',
-        content: `Generate market intel digest from:\n\n${newsContent.slice(0, 10000)}`,
+        content: `Generate market intelligence digest from these news sources (${new Date().toLocaleDateString('en-MY', { day: 'numeric', month: 'long', year: 'numeric' })}):\n\n${newsContent.slice(0, 14000)}`,
       },
     ],
-    { temperature: 0.4, max_tokens: 1200 }
+    { temperature: 0.3, max_tokens: 1800 }
   )
 }
 
@@ -154,24 +205,47 @@ export async function researchAgent(topic: string): Promise<string> {
     [
       {
         role: 'system',
-        content: `You are a senior business intelligence researcher for Fazmi Group Sdn Bhd / FG Inspection, a Malaysian NDT engineering company operating in O&G, construction, and infrastructure sectors.
+        content: `You are a senior business intelligence researcher for Fazmi Group Sdn Bhd / FG Inspection, a Malaysian NDT & engineering company.
 
-When given a research topic, provide a comprehensive structured report covering:
-1. Market overview and current state in Malaysia
-2. Key players and competitors
-3. Opportunities for Fazmi Group / FG Inspection
-4. Relevant government projects, tenders, or contracts
-5. Recommended next actions
+Services: NDT (RT, UT, MPI, DPI, PAUT, TOFD, UTTG), Steel Fabrication, Pipeline Inspection, Manpower Supply, G2 Construction.
 
-Format as clean markdown. Use headers, bullet points, and bold text for key points.
-Write in English. Be specific to the Malaysian market context. Max 800 words.`,
+When given a research topic, provide a structured intelligence report with these sections:
+
+## Overview
+Current market state relevant to the topic (Malaysia-focused unless specified)
+
+## New Projects & Factories
+- Specific new projects, factory openings, or facility expansions related to the topic
+- Company names, locations, values, timelines
+
+## NDT & Inspection Opportunities
+- Direct inspection opportunities arising from this topic
+- Specific scope (RT, UT, PAUT, structural, pipeline, etc.)
+
+## Pipeline & Steel Opportunities
+- Pipeline projects, steel fabrication needs linked to topic
+
+## CAPEX / OPEX Analysis
+- Capital expenditure by key players in this space
+- Operational expenditure relevant to inspection/maintenance
+- Estimated addressable value for Fazmi Group
+
+## Key Players & Competition
+- Major clients and prospects in this space
+- Competitors to be aware of
+
+## Recommended Actions for Fazmi Group
+- Specific, practical next steps (who to call, what to bid, which association to join)
+
+Format as clean markdown. Be specific — real company names, project names, RM/USD values where possible.
+Bilingual output preferred: use English for technical terms, mix in Bahasa Malaysia for context. Max 900 words.`,
       },
       {
         role: 'user',
         content: `Research topic: ${topic}`,
       },
     ],
-    { temperature: 0.3, max_tokens: 1500 }
+    { temperature: 0.3, max_tokens: 1800 }
   )
 }
 

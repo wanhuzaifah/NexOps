@@ -76,9 +76,12 @@ export default function TendersPage() {
   }, [loadTenders])
 
   async function handleScan() {
-    if (!companyId) return
+    if (!companyId) {
+      toast.error('Profile tidak dikonfigurasi — sila link company_id dalam Supabase dahulu')
+      return
+    }
     setScanning(true)
-    toast.loading('Mengimbas tender...', { id: 'scan' })
+    toast.loading('Mengimbas & menilai tender dengan AI...', { id: 'scan' })
     try {
       const res = await fetch('/api/tender', {
         method: 'POST',
@@ -87,10 +90,16 @@ export default function TendersPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Scan gagal')
-      toast.success(`${data.count || 0} tender ditemui!`, { id: 'scan' })
+      const count = data.count ?? 0
+      const high = data.high_match ?? 0
+      if (count === 0) {
+        toast.info('Scan selesai — tiada tender baru ditemui', { id: 'scan' })
+      } else {
+        toast.success(`${count} tender disimpan! (${high} high match)`, { id: 'scan' })
+      }
       await loadTenders(companyId)
     } catch (e) {
-      toast.error(String(e), { id: 'scan' })
+      toast.error(`Scan gagal: ${String(e)}`, { id: 'scan' })
     }
     setScanning(false)
   }
