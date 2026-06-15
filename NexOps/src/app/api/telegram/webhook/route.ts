@@ -79,7 +79,7 @@ async function handleTender(chatId: string, companyId: string): Promise<void> {
       const days = t.closing_date
         ? Math.ceil((new Date(t.closing_date).getTime() - Date.now()) / 86400000)
         : null
-      const urgency = days !== null && days <= 7 ? ` ⚠️ *${days}h lagi*` : ''
+      const urgency = days !== null && days <= 7 ? ` ⚠️ *${days}d lagi*` : ''
       return `${i + 1}. ${emoji} *${(t.title || 'Untitled').slice(0, 55)}*\n   📍 ${t.location || '—'} | 🏢 ${(t.agency || '—').slice(0, 30)}${urgency}\n   Score: ${score}/100`
     }).join('\n\n')
 
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     // Parse command
     const [cmd, ...args] = text.split(' ')
-    const command = cmd.toLowerCase().replace('@', '').split('@')[0]
+    const command = cmd.toLowerCase().split('@')[0]
     const argument = args.join(' ').trim()
 
     console.log(`[Telegram] Chat ${chatId} (${firstName}): ${text}`)
