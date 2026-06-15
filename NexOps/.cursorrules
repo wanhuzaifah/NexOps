@@ -1,0 +1,116 @@
+# NexOps — Cursor AI Rules
+# DO NOT MODIFY THIS FILE
+
+## PROJECT
+You are building NexOps — an AI-powered operations platform for
+Fazmi Group Sdn Bhd (FG Inspection), a Malaysian NDT engineering company.
+
+## COMPANY (Pre-loaded, never change)
+Name: FAZMI GROUP SDN BHD
+Reg: 202501005174 (1606588-X)
+Brand: FG INSPECTION (TR0242378-W)
+Address: Suite 33-01, 33rd Floor, Menara Keck Seng, 203 Jalan Bukit Bintang, 55100 WP KL
+Phone: +6011-2690 7066 / +603-2116 9727
+Email: fazmigroup@gmail.com
+Website: www.fginspections.com
+Bank: Bank Islam Malaysia Berhad
+Director: Nor Fazmi Hazwan bin Rozikin (Managing Director)
+CIDB: G2 B04, G2 CE21
+Currency: Malaysian Ringgit (RM) — always format as RM X,XXX.XX
+
+## TECH STACK (LOCKED — DO NOT CHANGE)
+- Framework: Next.js 15 App Router + TypeScript
+- UI: shadcn/ui components + Tailwind CSS
+- Auth + DB + Storage: Supabase (@supabase/ssr)
+- PDF Stamping: pdf-lib (CLIENT-SIDE ONLY — no server needed)
+- PDF Generation: @react-pdf/renderer
+- Word Templates: docxtemplater + pizzip
+- Email: Resend
+- Deployment: Vercel (serverless)
+- Automation: n8n (external, self-hosted)
+- Telegram: Telegram Bot API (via n8n)
+- LLM: DeepSeek V4 Flash ONLY — model: "deepseek-chat"
+  Endpoint: https://api.deepseek.com/v1/chat/completions
+  NO OTHER LLM PROVIDERS — this is final and locked
+
+## DESIGN (Fazmi Group brand)
+Primary Gold: #F59E0B
+Dark Navy: #0F172A
+White: #FFFFFF
+Accent Gold Dark: #D97706
+Success Green: #10B981
+Danger Red: #EF4444
+Warning Amber: #F59E0B
+Dashboard: Dark sidebar (#0F172A), light main content (#F8FAFC)
+Font: Inter (system default via shadcn)
+PDF Reports: Black/white, gold accents for headers, Arial font, A4 portrait
+
+## ARCHITECTURE
+- Multi-tenant SaaS: every table has company_id
+- Supabase RLS enforced on ALL tables
+- User roles: admin | manager | viewer
+- PDF ops run CLIENT-SIDE (pdf-lib, @react-pdf/renderer) — zero server cost
+- All AI calls go through /app/api/ai/route.ts using DeepSeek V4 Flash
+
+## NDT REPORT NUMBERING
+FG-RT-[YEAR]-[SEQ]   → Radiography Testing
+FG-UT-[YEAR]-[SEQ]   → Ultrasonic Testing
+FG-MPI-[YEAR]-[SEQ]  → Magnetic Particle Testing
+FG-DPI-[YEAR]-[SEQ]  → Dye Penetrant Testing
+FG-PMI-[YEAR]-[SEQ]  → Positive Material Identification
+FG-HT-[YEAR]-[SEQ]   → Hardness Testing
+FG-PAUT-[YEAR]-[SEQ] → Phased Array UT
+FG-UTTG-[YEAR]-[SEQ] → Ultrasonic Thickness Gauge
+FG-WQT-[YEAR]-[SEQ]  → Welding Qualification Test
+FG-INV-[YEAR]-[SEQ]  → Invoice
+FG-QUO-[YEAR]-[SEQ]  → Quotation
+FG-TS-[YEAR]-[SEQ]   → Timesheet
+
+## CODING RULES
+1. Always TypeScript with proper types — import from @/types
+2. Server components by default; 'use client' only when needed
+3. Supabase RLS on ALL database operations — never bypass
+4. Never expose API keys client-side
+5. Use shadcn/ui components first
+6. Always handle loading + error states
+7. PDF operations are client-side only
+8. All AI calls use DeepSeek V4 Flash via lib/ai/deepseek.ts
+
+## FILE STRUCTURE
+src/
+  app/
+    (auth)/login, register
+    (dashboard)/layout, page, documents, invoices, quotations,
+                reports, timesheets, clients, emails, settings,
+                equipment, personnel
+    api/ai, email, summary, tender
+  components/ui, pdf, documents, dashboard, reports
+  lib/supabase, ai, pdf, email
+  types/index.ts
+
+## EXISTING CLIENTS (autocomplete)
+Petronas Chemicals Group, PETRONAS Gas Berhad, MRT Corporation,
+Malaysia Rail Link (MRLB), Preserver Engineering Sdn Bhd,
+Samsung C&T, Intel, KLCC Property Holdings Berhad, Air Selangor,
+VME Companies Ltd, MHE-Jebsen & Jessen, NOV (National Oilwell Varco),
+WCE Sdn Bhd, CCCC, Sunway, Caltex, LRT3, Widad Group Berhad,
+Pembinaan Tetap Teguh Sdn Bhd
+
+## NDT RATE CARD (pre-loaded defaults)
+RT: RM45/shot | UT weld: RM35/joint | MPI: RM25/joint
+DPI: RM20/joint | PMI: RM30/reading | HT: RM25/reading
+PAUT: RM120/joint | UTTG: RM10/point | WQT: RM200/test
+UT Tech Lv2: RM400/day | RT Tech Lv2: RM450/day
+Safety Officer: RM280/day | QAQC: RM350/day
+Welder 3G/4G: RM250/day | General Worker: RM120/day
+Scaffolder: RM150/day | Mobilization: RM500 lump sum
+
+## TENDER SCORING KEYWORDS
+HIGH (+30): NDT, non-destructive testing, radiography, ultrasonic,
+            inspection services, PAUT, TOFD, thickness survey
+MEDIUM (+20): steel fabrication, structural steel, G2, manpower supply,
+              technician supply, pipeline, piping inspection, welding
+LOW (+10): construction, maintenance, engineering service
+LOCATION BONUS (+20): Kelantan, Kota Bharu, East Coast
+DISQUALIFY (score=0): cleaning services, catering, landscaping,
+                      security guard, printing, value <RM5000
