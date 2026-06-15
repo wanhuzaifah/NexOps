@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   Search, RefreshCw, Bookmark, CheckCircle2, XCircle,
   MapPin, Calendar, Building2, TrendingUp, Filter,
-  Clock, ExternalLink, AlertTriangle,
+  Clock, ExternalLink, AlertTriangle, Lightbulb, X,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { TenderCache, TenderStatus } from '@/types'
@@ -45,6 +45,8 @@ export default function TendersPage() {
   const [scanning, setScanning] = useState(false)
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [lastScanned, setLastScanned] = useState<string | null>(null)
+  const [bidModal, setBidModal] = useState<{ tender: TenderCache; strategy: string } | null>(null)
+  const [loadingBid, setLoadingBid] = useState<string | null>(null)
 
   const loadTenders = useCallback(async (cid: string) => {
     const { data } = await supabase
@@ -92,16 +94,46 @@ export default function TendersPage() {
       if (!res.ok) throw new Error(data.error || 'Scan gagal')
       const count = data.count ?? 0
       const high = data.high_match ?? 0
-      if (count === 0) {
-        toast.info('Scan selesai — tiada tender baru ditemui', { id: 'scan' })
+      const aiScored = data.ai_scored ?? 0
+      if (count === 0 && aiScored === 0) {
+        toast.error('AI tidak dapat score tender — semak API key DeepSeek', { id: 'scan' })
+      } else if (count === 0) {
+        toast.info(`AI scored ${aiScored} tender tapi gagal simpan ke DB — semak console`, { id: 'scan' })
       } else {
-        toast.success(`${count} tender disimpan! (${high} high match)`, { id: 'scan' })
+        toast.success(`${count} tender disimpan! (${high} high match, ${aiScored} AI scored)`, { id: 'scan' })
       }
       await loadTenders(companyId)
     } catch (e) {
       toast.error(`Scan gagal: ${String(e)}`, { id: 'scan' })
     }
     setScanning(false)
+  }
+
+  async function getBidStrategy(tender: TenderCache) {
+    setLoadingBid(tender.id)
+    toast.loading('AI sedang analisa strategi bid...', { id: 'bid' })
+    try {
+      const res = await fetch('/api/bid-strategy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tender: {
+            title: tender.title,
+            agency: tender.agency,
+            estimated_value: tender.estimated_value,
+            location: tender.location,
+            match_reasons: tender.match_reasons,
+          }
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success('Strategi bid siap!', { id: 'bid' })
+      setBidModal({ tender, strategy: data.strategy })
+    } catch (e) {
+      toast.error(`Gagal: ${String(e)}`, { id: 'bid' })
+    }
+    setLoadingBid(null)
   }
 
   async function updateStatus(id: string, status: TenderStatus) {
@@ -320,39 +352,36 @@ export default function TendersPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => getBidStrategy(tender)}
+                      disabled={loadingBid === tender.id}
+                      title="AI Bid Strategy"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition disabled:opacity-50"
+                    >
+                      <Lightbulb size={12} className={loadingBid === tender.id ? 'animate-pulse' : ''} />
+                      {loadingBid === tender.id ? '...' : 'Bid Strategy'}
+                    </button>
                     {tender.status !== 'saved' && (
-                      <button
-                        onClick={() => updateStatus(tender.id, 'saved')}
-                        title="Simpan"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
-                      >
+                      <button onClick={() => updateStatus(tender.id, 'saved')} title="Simpan"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition">
                         <Bookmark size={15} />
                       </button>
                     )}
                     {tender.status !== 'applied' && (
-                      <button
-                        onClick={() => updateStatus(tender.id, 'applied')}
-                        title="Tandakan Mohon"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition"
-                      >
+                      <button onClick={() => updateStatus(tender.id, 'applied')} title="Tandakan Mohon"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition">
                         <CheckCircle2 size={15} />
                       </button>
                     )}
                     {tender.status !== 'ignored' && (
-                      <button
-                        onClick={() => updateStatus(tender.id, 'ignored')}
-                        title="Abaikan"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-                      >
+                      <button onClick={() => updateStatus(tender.id, 'ignored')} title="Abaikan"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
                         <XCircle size={15} />
                       </button>
                     )}
                     {tender.status !== 'new' && (
-                      <button
-                        onClick={() => updateStatus(tender.id, 'new')}
-                        title="Set semula"
-                        className="p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
-                      >
+                      <button onClick={() => updateStatus(tender.id, 'new')} title="Set semula"
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                         <Filter size={13} />
                       </button>
                     )}
@@ -361,6 +390,42 @@ export default function TendersPage() {
               </div>
             )
           })}
+        </div>
+      )}
+      {/* Bid Strategy Modal */}
+      {bidModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setBidModal(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+            <div className="flex items-start justify-between p-5 border-b border-slate-100 dark:border-slate-700">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-6 h-6 rounded-lg gold-gradient flex items-center justify-center">
+                    <Lightbulb size={12} className="text-brand-navy" />
+                  </div>
+                  <span className="text-xs font-semibold text-brand-gold uppercase tracking-wide">AI Bid Strategy</span>
+                </div>
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-white leading-snug line-clamp-2">
+                  {bidModal.tender.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">{bidModal.tender.agency}</p>
+              </div>
+              <button onClick={() => setBidModal(null)} className="text-slate-400 hover:text-slate-600 ml-3 flex-shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5">
+              <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 whitespace-pre-wrap text-sm leading-relaxed">
+                {bidModal.strategy}
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+              <button onClick={() => setBidModal(null)}
+                className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition">
+                Tutup
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

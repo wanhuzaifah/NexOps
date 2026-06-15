@@ -170,14 +170,25 @@ export async function POST(request: NextRequest) {
 
     // ── Run AI scoring ────────────────────────────────────────
     const scored = await tenderScoutAgent(contentToAnalyse)
+    console.log(`[Tender] DeepSeek returned ${scored?.length ?? 0} tenders`)
+
     if (!scored || scored.length === 0) {
       return NextResponse.json({ success: true, count: 0, tenders: [], message: 'AI returned no results' })
     }
 
     // ── Save to database ──────────────────────────────────────
     const saved = []
+    const errors = []
+
     for (const tender of scored) {
-      if ((tender.relevance_score || 0) < 30) continue
+      if ((tender.relevance_score || 0) < 20) continue
+
+      // Sanitize closing_date — must be valid date or null
+      let closingDate: string | null = null
+      if (tender.closing_date) {
+        const d = new Date(tender.closing_date)
+        closingDate = isNaN(d.getTime()) ? null : d.toISOString().split('T')[0]
+      }
 
       const { data, error } = await supabase
         .from('tender_cache')
@@ -185,12 +196,13 @@ export async function POST(request: NextRequest) {
           company_id,
           source: 'Malaysia Tender Portal',
           source_url: 'https://tender.jkr.gov.my',
-          title: tender.title,
-          agency: tender.agency,
-          estimated_value: tender.estimated_value,
-          closing_date: tender.closing_date || null,
-          location: tender.location,
-          relevance_score: tender.relevance_score,
+          tender_id_external: `${tender.title?.slice(0, 40)}-${Date.now()}`.replace(/\s+/g, '-'),
+          title: tender.title || 'Untitled Tender',
+          agency: tender.agency || 'Unknown Agency',
+          estimated_value: tender.estimated_value || null,
+          closing_date: closingDate,
+          location: tender.location || null,
+          relevance_score: tender.relevance_score || 0,
           match_reasons: tender.match_reasons || [],
           status: 'new',
           scraped_at: new Date().toISOString(),
@@ -198,13 +210,22 @@ export async function POST(request: NextRequest) {
         .select()
         .single()
 
-      if (data && !error) saved.push(data)
+      if (error) {
+        console.error(`[Tender] Insert error for "${tender.title}":`, error.message)
+        errors.push(error.message)
+      } else if (data) {
+        saved.push(data)
+      }
     }
+
+    console.log(`[Tender] Saved ${saved.length}/${scored.length} tenders. Errors: ${errors.length}`)
 
     return NextResponse.json({
       success: true,
       count: saved.length,
-      high_match: saved.filter(t => (t.relevance_score || 0) >= 80).length,
+      ai_scored: scored.length,
+      high_match: saved.filter((t: { relevance_score: number }) => (t.relevance_score || 0) >= 80).length,
+      errors: errors.length > 0 ? errors.slice(0, 3) : undefined,
       tenders: saved,
     })
   } catch (error) {

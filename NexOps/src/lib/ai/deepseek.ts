@@ -63,33 +63,53 @@ export async function tenderScoutAgent(scrapedContent: string): Promise<
     [
       {
         role: 'system',
-        content: `You are the Tender Scout Agent for Fazmi Group Sdn Bhd, a Malaysian NDT and engineering company.
+        content: `You are a tender scoring agent for Fazmi Group Sdn Bhd, a Malaysian NDT and engineering company.
 
-Services: NDT (RT, UT, MPI, DPI, PMI, HT, PAUT, UTTG), Steel Fabrication, G2 Construction (B04, CE21), Industrial Manpower Supply, Pipeline Installation.
+Read the tender listings and score each for relevance (0-100):
+- NDT, non-destructive testing, radiography, ultrasonic, inspection services = +30
+- Steel fabrication, pipeline, welding inspection = +25
+- G2 construction, manpower supply, technician = +20
+- O&G, PETRONAS, energy, petrochemical = +15
+- Kelantan, Kota Bharu, East Coast = +20 bonus
+- Cleaning, catering, IT software, security guard = score 0
 
-Score each tender 0-100 for relevance to Fazmi Group:
-+30: NDT, non-destructive testing, radiography, ultrasonic, inspection services, PAUT, TOFD
-+25: steel fabrication, structural steel, pipeline, piping inspection, welding
-+20: G2, manpower supply, technician supply, construction works
-+15: Petronas, O&G, oil gas, petrochemical, energy
-+20 BONUS: Kelantan, Kota Bharu, East Coast Malaysia
-AUTO 0: cleaning services, catering, landscaping, security guard, printing, ICT software
+Return ONLY a raw JSON array. No markdown. No explanation. No code fences. Start directly with [ and end with ].
 
-Return ONLY valid JSON array (no markdown):
-[{"title":"...","agency":"...","estimated_value":"...","closing_date":"...","location":"...","relevance_score":85,"match_reasons":["NDT inspection","Kelantan location"]}]`,
+Each item must have: title, agency, estimated_value, closing_date, location, relevance_score (number), match_reasons (array of strings).
+
+Example output:
+[{"title":"NDT Inspection Services","agency":"PETRONAS","estimated_value":"RM 500,000","closing_date":"2025-07-30","location":"Terengganu","relevance_score":85,"match_reasons":["NDT inspection","PETRONAS"]}]`,
       },
       {
         role: 'user',
-        content: `Analyze these tenders:\n\n${scrapedContent.slice(0, 8000)}`,
+        content: `Score these tenders:\n\n${scrapedContent.slice(0, 8000)}`,
       },
     ],
-    { temperature: 0.1, max_tokens: 2500 }
+    { temperature: 0.1, max_tokens: 3000 }
   )
 
   try {
-    const clean = result.replace(/```json|```/g, '').trim()
-    return JSON.parse(clean)
-  } catch {
+    // Log raw response for debugging
+    console.log('[TenderAgent] Raw response (first 300 chars):', result.slice(0, 300))
+
+    // Try multiple extraction strategies
+    let clean = result.trim()
+
+    // Remove markdown code fences
+    clean = clean.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim()
+
+    // Find JSON array in response
+    const arrayStart = clean.indexOf('[')
+    const arrayEnd = clean.lastIndexOf(']')
+    if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+      clean = clean.slice(arrayStart, arrayEnd + 1)
+    }
+
+    const parsed = JSON.parse(clean)
+    console.log('[TenderAgent] Parsed', parsed.length, 'tenders')
+    return parsed
+  } catch (e) {
+    console.error('[TenderAgent] JSON parse failed:', e, '\nRaw:', result.slice(0, 500))
     return []
   }
 }
@@ -246,6 +266,248 @@ Bilingual output preferred: use English for technical terms, mix in Bahasa Malay
       },
     ],
     { temperature: 0.3, max_tokens: 1800 }
+  )
+}
+
+// ── INTELLIGENCE EXTRACTOR (Pass 1) ──────────────────────────
+// Extracts structured intelligence entities from raw scraped content
+// before the main digest — gives DeepSeek clean data to reason over
+
+export async function extractIntelligence(rawContent: string): Promise<string> {
+  return callDeepSeek(
+    [
+      {
+        role: 'system',
+        content: `You are an intelligence extraction engine for Fazmi Group Sdn Bhd / FG Inspection.
+
+Read the raw scraped news content and extract ONLY concrete, factual intelligence items.
+For each item found, output in this exact format:
+
+[ITEM]
+Type: NEW_FACTORY | NEW_PROJECT | SHUTDOWN | TENDER | PIPELINE | NDT_OPPORTUNITY | CAPEX | STEEL_FAB | REGULATORY
+Company: <company name>
+Project: <project name or description>
+Location: <country/state/city>
+Value: <RM/USD amount if mentioned, else "Not stated">
+Timeline: <date/quarter/year if mentioned, else "Not stated">
+Relevance: <1-10 score for FG Inspection relevance>
+FG_Angle: <specific service FG Inspection can offer — RT, UT, PAUT, steel fab, pipeline, manpower, etc>
+Source: <news source name>
+[/ITEM]
+
+Extract ALL items — do not filter. Skip only completely irrelevant items (food, politics, entertainment).
+Focus on: O&G, construction, NDT, inspection, steel, pipeline, manufacturing, infrastructure.`,
+      },
+      {
+        role: 'user',
+        content: `Extract intelligence from:\n\n${rawContent.slice(0, 14000)}`,
+      },
+    ],
+    { temperature: 0.1, max_tokens: 2500 }
+  )
+}
+
+// ── OPPORTUNITY SCORER ────────────────────────────────────────
+// Rates each opportunity and outputs a prioritized action list
+
+export async function scoreOpportunities(extractedIntel: string): Promise<string> {
+  return callDeepSeek(
+    [
+      {
+        role: 'system',
+        content: `You are a business development strategist for Fazmi Group Sdn Bhd / FG Inspection.
+
+Given extracted intelligence items, output a PRIORITIZED OPPORTUNITY LIST:
+
+For each opportunity score ≥ 6:
+**[RANK]. [Project/Company Name]** — Score: X/10
+- Opportunity: <what specifically FG Inspection can do>
+- Estimated Value: <RM/USD>
+- Action Required: <specific next step — "Email procurement@company.com", "Register at portal", "Submit EOI by DATE">
+- Urgency: 🔴 Urgent (<2 weeks) | 🟡 Near-term (1-2 months) | 🟢 Pipeline (3-6 months)
+
+Then output:
+## 📋 This Week's Action List
+Numbered list of concrete actions Wan should take TODAY or THIS WEEK.
+
+Keep it short and direct. Max 600 words.`,
+      },
+      {
+        role: 'user',
+        content: extractedIntel,
+      },
+    ],
+    { temperature: 0.2, max_tokens: 1200 }
+  )
+}
+
+// ── BID STRATEGY AGENT ────────────────────────────────────────
+// For a specific saved tender, generate a bid strategy outline
+
+export async function bidStrategyAgent(tender: {
+  title: string
+  agency: string
+  estimated_value: string
+  location: string
+  match_reasons: string[]
+}): Promise<string> {
+  return callDeepSeek(
+    [
+      {
+        role: 'system',
+        content: `You are a tender bid strategist for Fazmi Group Sdn Bhd / FG Inspection.
+
+Company profile:
+- NDT services: RT, UT, MPI, DPI, PAUT, TOFD, UTTG, PMI, HT
+- Steel fabrication, pipeline inspection
+- CIDB G2 B04 (civil), G2 CE21 (mechanical)
+- DOSH licensed for pressure vessel inspection
+- Based in KL, active in Kelantan, nationwide
+- Est. 2025, Bumiputera company
+
+Given a tender, output a BID STRATEGY:
+
+## Bid/No-Bid Decision
+Recommend: BID ✅ / NO-BID ❌ / CONSIDER ⚠️
+Reason: <brief justification>
+
+## Winning Strategy
+- Key differentiators to highlight
+- Pricing approach (premium / competitive / low)
+- Subcontracting needs (if any)
+
+## Documents to Prepare
+Checklist of required documents/certs
+
+## Risk Factors
+What could go wrong + mitigation
+
+## Estimated Win Probability
+X% — based on competition, company fit, location advantage
+
+Max 400 words. Be direct.`,
+      },
+      {
+        role: 'user',
+        content: `Tender details:
+Title: ${tender.title}
+Agency: ${tender.agency}
+Value: ${tender.estimated_value}
+Location: ${tender.location}
+Why relevant: ${tender.match_reasons.join(', ')}`,
+      },
+    ],
+    { temperature: 0.3, max_tokens: 800 }
+  )
+}
+
+// ── DAILY BRIEF AGENT ─────────────────────────────────────────
+// Morning brief combining tenders + market intel for Telegram
+
+export async function dailyBriefAgent(data: {
+  highTenders: Array<{ title: string; score: number; agency: string; closing_date: string | null }>
+  latestDigest: string
+  stats: { total: number; high: number; saved: number }
+}): Promise<string> {
+  const tenderList = data.highTenders
+    .slice(0, 5)
+    .map(t => `- [${t.score}] ${t.title} (${t.agency}) — tutup ${t.closing_date || 'TBD'}`)
+    .join('\n')
+
+  return callDeepSeek(
+    [
+      {
+        role: 'system',
+        content: `You are the NexOps Daily Brief AI for Wan (Fazmi Group / FG Inspection).
+
+Write a concise morning brief in BILINGUAL (mix English + Bahasa Malaysia) format for Telegram.
+Keep it under 300 words. Use emojis for readability. Format for mobile reading.
+
+Structure:
+🌅 *Selamat Pagi, Wan!* — [date]
+
+📊 *Tender Summary*
+[stats]
+
+🎯 *Top Tenders Today*
+[top tenders]
+
+💡 *Market Intel Highlight*
+[1-2 sentence key insight from digest]
+
+✅ *Action Today*
+[1-3 specific actions]`,
+      },
+      {
+        role: 'user',
+        content: `Stats: ${data.stats.total} tenders total, ${data.stats.high} high match, ${data.stats.saved} saved
+        
+Top tenders:
+${tenderList}
+
+Latest market digest excerpt:
+${data.latestDigest.slice(0, 1000)}`,
+      },
+    ],
+    { temperature: 0.4, max_tokens: 600 }
+  )
+}
+
+// ── HOURLY OPPORTUNITY BRIEF ──────────────────────────────────
+// Compact, high-signal brief designed for Telegram — 1 hour cadence
+
+export async function hourlyOpportunityBrief(data: {
+  tenders: Array<{ title: string | null; agency: string | null; relevance_score: number | null; closing_date: string | null; location: string | null }>
+  latestDigestSnippet: string
+  hour: number
+  newTendersCount: number
+}): Promise<string> {
+  const tenderList = data.tenders
+    .slice(0, 5)
+    .map(t => `- [${t.relevance_score}] ${t.title} | ${t.agency} | ${t.location} | Tutup: ${t.closing_date || 'TBD'}`)
+    .join('\n')
+
+  const timeContext = data.hour < 10
+    ? 'Pagi ini'
+    : data.hour < 14
+    ? 'Tengahari ini'
+    : data.hour < 18
+    ? 'Petang ini'
+    : 'Malam ini'
+
+  return callDeepSeek(
+    [
+      {
+        role: 'system',
+        content: `You are NexOps AI for Fazmi Group Sdn Bhd / FG Inspection. Generate a CONCISE hourly business opportunity brief for Telegram.
+
+FORMAT RULES:
+- Max 350 words
+- Use Telegram Markdown (* for bold, _ for italic)
+- Start with a relevant emoji
+- Write in BILINGUAL mix (English + Bahasa Malaysia)
+- Be DIRECT — highlight only the most actionable opportunities
+- End with ONE specific action Wan should do right now
+
+SECTIONS (keep each to 2-3 lines):
+🎯 *Top Tender* — the single best tender right now
+💡 *Market Signal* — 1 key insight from market intel
+⚡ *Action Now* — specific thing to do in next 30 minutes`,
+      },
+      {
+        role: 'user',
+        content: `${timeContext} brief (${new Date().toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' })}):
+
+New tenders this hour: ${data.newTendersCount}
+
+High-match tenders:
+${tenderList || 'None currently'}
+
+Latest market intel snippet:
+${data.latestDigestSnippet.slice(0, 800)}`,
+      },
+    ],
+    { temperature: 0.4, max_tokens: 500 }
   )
 }
 

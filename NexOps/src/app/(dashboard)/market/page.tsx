@@ -205,7 +205,8 @@ export default function MarketIntelPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Gagal')
-      toast.success('Digest berjaya dijana!', { id: 'digest' })
+      const scraped = data.sources_scraped ?? 0
+      toast.success(`Digest dijana! (${scraped} sumber berjaya di-scrape)`, { id: 'digest' })
       await loadData(companyId)
     } catch (e) {
       toast.error(`Gagal: ${String(e)}`, { id: 'digest' })
@@ -296,7 +297,7 @@ export default function MarketIntelPage() {
                 <div className="flex gap-2">
                   {([
                     { value: 'malaysia' as DigestScope, label: '🇲🇾 Malaysia' },
-                    { value: 'global' as DigestScope, label: '🌐 Global' },
+                    { value: 'global' as DigestScope, label: '🌐 Global (All)' },
                   ]).map(opt => (
                     <button
                       key={opt.value}
@@ -338,9 +339,13 @@ export default function MarketIntelPage() {
             </div>
             <div className="flex items-center justify-between mt-4">
               <p className="text-xs text-slate-400">
-                {digestLang === 'bilingual' && 'Scrape The Edge, Bernama + Berita Harian, Utusan'}
-                {digestLang === 'english' && 'Scrape The Edge, Bernama, The Star, FMT, OilPrice'}
-                {digestLang === 'malay' && 'Scrape Berita Harian, Utusan, Sinar, Malaysiakini'}
+                {digestScope === 'global'
+                  ? '30+ sumber: OilPrice, Rigzone, Reuters, ENR, Arabian Biz, NDT.net, CNA, Straits Times + Malaysia'
+                  : digestLang === 'bilingual'
+                  ? 'The Edge, Bernama, NST + BH, Utusan, Sinar + OilPrice, Rigzone, NDT.net, ASEAN'
+                  : digestLang === 'english'
+                  ? 'The Edge, The Star, FMT, NST, Bernama + OilPrice, Rigzone, NDT.net, ASEAN news'
+                  : 'Berita Harian, Utusan, Sinar, Malaysiakini + OilPrice, Rigzone, NDT.net'}
               </p>
               <button
                 onClick={runDigest}
