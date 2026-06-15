@@ -104,7 +104,7 @@ export default async function DashboardPage() {
         </p>
         <div className="bg-slate-900 rounded-xl p-4 text-left text-xs font-mono text-emerald-400 mb-6 space-y-1">
           <p>INSERT INTO companies (name)</p>
-          <p>{'  '}VALUES (&apos;FAZMI GROUP SDN BHD&apos;);</p>
+          <p>{"  VALUES ('FAZMI GROUP SDN BHD');"}</p>
           <p className="text-slate-500 mt-2">-- Then:</p>
           <p>UPDATE profiles</p>
           <p>{'  '}SET company_id = (SELECT id FROM companies LIMIT 1)</p>
