@@ -28,6 +28,7 @@ export default function LoginPage() {
       return
     }
 
+    setLoading(false)
     toast.success('Login berjaya!')
     router.push('/')
     router.refresh()

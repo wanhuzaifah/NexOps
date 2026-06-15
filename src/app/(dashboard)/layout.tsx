@@ -25,10 +25,11 @@ const NAV_ITEMS = [
   { label: 'Tetapan',      href: '/settings', icon: Settings },
 ]
 
+const supabase = createClient()
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userName, setUserName] = useState('Wan')
