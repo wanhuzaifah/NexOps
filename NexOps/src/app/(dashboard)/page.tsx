@@ -54,24 +54,28 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Use maybeSingle() — returns null instead of throwing 404 when no row found
   const { data: profile } = await supabase
-    .from('profiles').select('company_id').eq('id', user?.id).single()
-  const companyId = profile?.company_id
+    .from('profiles').select('company_id').eq('id', user?.id ?? '').maybeSingle()
+  const companyId = profile?.company_id ?? null
 
   const now = new Date()
   const today = now.toISOString().split('T')[0]
   const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const todayStart = new Date(now.setHours(0, 0, 0, 0)).toISOString()
 
+  // Only query if companyId exists
   const [
     { data: allTenders },
     { data: todayTenders },
     { data: latestDigests },
-  ] = await Promise.all([
-    supabase.from('tender_cache').select('relevance_score, status, closing_date').eq('company_id', companyId),
-    supabase.from('tender_cache').select('id').eq('company_id', companyId).gte('scraped_at', todayStart),
-    supabase.from('market_digests').select('*').eq('company_id', companyId).eq('type', 'digest').order('created_at', { ascending: false }).limit(1),
-  ])
+  ] = companyId
+    ? await Promise.all([
+        supabase.from('tender_cache').select('relevance_score, status, closing_date').eq('company_id', companyId),
+        supabase.from('tender_cache').select('id').eq('company_id', companyId).gte('scraped_at', todayStart),
+        supabase.from('market_digests').select('*').eq('company_id', companyId).eq('type', 'digest').order('created_at', { ascending: false }).limit(1),
+      ])
+    : [{ data: null }, { data: null }, { data: null }]
 
   const highMatch = allTenders?.filter((t) => (t.relevance_score || 0) >= 80) || []
   const saved = allTenders?.filter((t) => t.status === 'saved') || []
@@ -86,6 +90,30 @@ export default async function DashboardPage() {
   const greeting =
     new Date().getHours() < 12 ? 'Selamat Pagi' :
     new Date().getHours() < 17 ? 'Selamat Tengahari' : 'Selamat Petang'
+
+  // Show setup screen if company not linked yet
+  if (!companyId) {
+    return (
+      <div className="max-w-lg mx-auto mt-16 text-center">
+        <div className="w-14 h-14 rounded-2xl gold-gradient flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle size={24} className="text-brand-navy" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">Setup Required</h2>
+        <p className="text-slate-500 text-sm mb-6">
+          Profile anda belum dikonfigurasi. Jalankan SQL berikut dalam Supabase SQL Editor:
+        </p>
+        <div className="bg-slate-900 rounded-xl p-4 text-left text-xs font-mono text-emerald-400 mb-6 space-y-1">
+          <p>INSERT INTO companies (name)</p>
+          <p>{'  '}VALUES (&apos;FAZMI GROUP SDN BHD&apos;);</p>
+          <p className="text-slate-500 mt-2">-- Then:</p>
+          <p>UPDATE profiles</p>
+          <p>{'  '}SET company_id = (SELECT id FROM companies LIMIT 1)</p>
+          <p>WHERE id = (SELECT id FROM auth.users LIMIT 1);</p>
+        </div>
+        <p className="text-slate-400 text-xs">Lepas run SQL, refresh halaman ini.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 max-w-6xl">
